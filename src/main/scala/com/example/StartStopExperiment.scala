@@ -1,13 +1,16 @@
 package com.example
 
-import akka.actor.{ Actor, ActorSystem, Props }
+import akka.actor.{ Actor, ActorSystem, PoisonPill, Props }
 
 object StartStopExperiment extends App {
   val system = ActorSystem("StartStopExperiment")
 
   val a = system.actorOf(StartStopActor1Another.props, "first")
 
-  a ! "stop"
+//  a ! "stop"
+
+  a ! PoisonPill
+  system.terminate()
 }
 
 object StartStopActor1Another {
@@ -22,9 +25,11 @@ class StartStopActor1Another extends Actor {
 
   override def postStop(): Unit = println("first stopped")
 
-  override def receive: Receive = {
-    case "stop" => context.stop(self)
-  }
+//  override def receive: Receive = {
+//    case "stop" => context.stop(self)
+//  }
+
+  override def receive: Receive = Actor.emptyBehavior
 }
 
 
