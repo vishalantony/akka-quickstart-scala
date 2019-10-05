@@ -3,8 +3,10 @@ package com.iot
 import java.util.UUID
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, Props, Terminated }
-import com.iot.DeviceGroup.{ ReplyDeviceList, RequestDeviceList }
+import com.iot.DeviceGroup.{ ReplyDeviceList, RequestAllTemperatures, RequestDeviceList }
 import com.iot.DeviceManager.RequestTrackDevice
+
+import scala.concurrent.duration._
 
 class DeviceGroup(groupId: UUID) extends Actor with ActorLogging {
   var deviceIdToDeviceActor = Map.empty[UUID, ActorRef]
@@ -41,6 +43,9 @@ class DeviceGroup(groupId: UUID) extends Actor with ActorLogging {
 
     case RequestDeviceList(requestId) =>
       sender() ! ReplyDeviceList(requestId, deviceIdToDeviceActor.keySet)
+
+    case RequestAllTemperatures(requestId) =>
+      context.actorOf(DeviceGroupQuery.props(deviceActorToDeviceId, requestId, sender(), 3 seconds))
   }
 }
 
@@ -49,5 +54,21 @@ object DeviceGroup {
     Props(new DeviceGroup(groupId))
 
   final case class RequestDeviceList(requestId: Long)
+
   final case class ReplyDeviceList(requestId: Long, deviceList: Set[UUID])
+
+  sealed trait TemperatureReading
+
+  final case class Temperature(value: Double) extends TemperatureReading
+
+  case object TemperatureNotAvailable extends TemperatureReading
+
+  case object DeviceNotAvailable extends TemperatureReading
+
+  case object DeviceTimedOut extends TemperatureReading
+
+  final case class RequestAllTemperatures(requestId: Long)
+
+  final case class RespondAllTemperatures(requestId: Long, temperatures: Map[UUID, TemperatureReading])
+
 }

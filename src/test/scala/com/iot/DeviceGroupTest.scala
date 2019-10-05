@@ -4,7 +4,8 @@ import java.util.UUID
 
 import akka.actor.{ ActorSystem, PoisonPill }
 import akka.testkit.{ TestKit, TestProbe }
-import com.iot.DeviceGroup.{ ReplyDeviceList, RequestDeviceList }
+import com.iot.Device.{ RecordTemperature, TemperatureRecorded }
+import com.iot.DeviceGroup.{ ReplyDeviceList, RequestAllTemperatures, RequestDeviceList, RespondAllTemperatures, Temperature, TemperatureNotAvailable }
 import com.iot.DeviceManager._
 import org.scalatest.{ BeforeAndAfterAll, Matchers, WordSpecLike }
 
@@ -112,5 +113,38 @@ class DeviceGroupTest(_system: ActorSystem) extends TestKit(_system)
       deviceGroup.tell(RequestDeviceList(requestId), probe.ref)
       probe.expectMsg(ReplyDeviceList(requestId, Set(deviceId2)))
     }
+  }
+
+  "be able to collect temperatures from all devices in a group" in {
+    val probe     = TestProbe()
+    val deviceId1 = UUID.randomUUID()
+    val deviceId2 = UUID.randomUUID()
+    val deviceId3 = UUID.randomUUID()
+    val groupId   = UUID.randomUUID()
+
+    val deviceGroup = system.actorOf(DeviceGroup.props(groupId))
+
+    deviceGroup.tell(RequestTrackDevice(groupId, deviceId1), probe.ref)
+    probe.expectMsg(DeviceRegistered)
+    val device1Actor = probe.lastSender
+
+    deviceGroup.tell(RequestTrackDevice(groupId, deviceId2), probe.ref)
+    probe.expectMsg(DeviceRegistered)
+    val device2Actor = probe.lastSender
+
+    deviceGroup.tell(RequestTrackDevice(groupId, deviceId3), probe.ref)
+    probe.expectMsg(DeviceRegistered)
+
+    device1Actor.tell(RecordTemperature(0, 1.0), probe.ref)
+    probe.expectMsg(TemperatureRecorded(0))
+    device2Actor.tell(RecordTemperature(1, 2.0), probe.ref)
+    probe.expectMsg(TemperatureRecorded(1))
+
+    deviceGroup.tell(RequestAllTemperatures(2), probe.ref)
+    probe.expectMsg(RespondAllTemperatures(2, Map(
+      deviceId1 -> Temperature(1.0),
+      deviceId2 -> Temperature(2.0),
+      deviceId3 -> TemperatureNotAvailable
+    )))
   }
 }
