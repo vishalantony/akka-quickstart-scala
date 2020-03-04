@@ -11,6 +11,6 @@ class IOTSupervisor extends Actor with ActorLogging {
 }
 
 object IOTSupervisor {
-  def props = Props(new IOTSupervisor)
+  def props: Props = Props(new IOTSupervisor)
 }
 
